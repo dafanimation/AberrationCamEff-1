@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - AberrationCamEff</title>
+  <link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<shader-doodle>
+  <sd-node name="grayscale" prevbuffer>
+    <sd-texture webcam name="cam"></sd-texture>
+    <script type="x-shader/x-fragment">
+      uniform sampler2D cam;
+      uniform vec2 cam_resolution;
+      uniform sampler2D u_prevbuffer;
+
+      vec2 coverScreen(vec2 fragCoord, vec2 resolution, float aspect) {
+        vec2 uv = 0.5 * (2.0 * fragCoord - resolution);
+        if (resolution.x / resolution.y > aspect) {
+          uv = 0.5 - uv / vec2(resolution.x, -resolution.x / aspect);
+        } else {
+          uv = 0.5 - uv / vec2(resolution.y * aspect, -resolution.y);
+        }
+        return uv;
+      }
+
+      void main() {
+        vec2 st = gl_FragCoord.xy / u_resolution.xy;
+        float aspect = cam_resolution.x / cam_resolution.y;
+        vec2 uv = coverScreen(gl_FragCoord.xy, u_resolution, aspect);
+
+        vec4 texture = texture2D(cam, uv);
+        vec3 color = vec3(dot(texture.rgb, vec3(.2126, .7152, .0722)) + .05);
+
+        vec2 stprev = st / vec2(1.0125, 1.0125) + .00625;
+        stprev.x += sin(stprev.y * 2. + u_time * .5) * .005;
+        vec3 prev = texture2D(u_prevbuffer, stprev).rgb;
+        color = mix(color, prev, .80);
+
+        gl_FragColor = vec4(color, texture.a);
+      }
+    </script>
+  </sd-node>
+  <script type="x-shader/x-fragment">
+    uniform sampler2D grayscale;
+
+    void main() {
+      vec2 st = gl_FragCoord.xy / u_resolution.xy;
+      float aberrationAmount =  .4;
+      vec2 distFromCenter = st - .5;
+      vec2 aberrated = aberrationAmount * pow(distFromCenter, vec2(1., 1.));
+
+      gl_FragColor = vec4(
+        texture2D(grayscale, st - aberrated).r,
+        texture2D(grayscale, st).g,
+        texture2D(grayscale, st + aberrated).b,
+        1.
+      );
+    }
+  </script>
+</shader-doodle>
+<!-- partial -->
+  <script  src="./script.js"></script>
+
+</body>
+</html>
